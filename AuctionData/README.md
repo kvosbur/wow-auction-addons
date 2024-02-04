@@ -27,4 +27,13 @@
 
 
 ### Start Database
-    - `docker compose -f database/docker-compose.yaml up -d`
+    - `docker compose -f database/docker-compose.yaml up -d`  psql -d wow-auction-db -U user -W
+
+
+## TODO
+1. setup environment secrets
+1. Include if-modified-since header to request to only get data if there is something new
+1. Set up recurrence, likely using some docker container
+1. Store backup of api response in data file
+1. Implement IQR outlier filter
+1. Implement z-score outlier filter

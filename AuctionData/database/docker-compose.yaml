@@ -8,3 +8,5 @@ services:
       POSTGRES_PASSWORD: example
       POSTGRES_DB: wow-auction-db
       POSTGRES_USER: user
+    volumes:
+      - ./postgres-data:/var/lib/postgresql
