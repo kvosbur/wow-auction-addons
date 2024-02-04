@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"gorm.io/gorm"
 )
 
-func getAuctionStuff() *AuctionDataResponse {
+func getAuctionStuff(last_request_time time.Time) (auction_data *AuctionDataResponse, new_data bool) {
 	auth := GetToken(retrieveEnvironmentValue("API_CLIENT_ID"), retrieveEnvironmentValue("API_CLIENT_SECRET"))
-	auctionData := GetAuctionData(auth.AccessToken)
-	return auctionData
+	auctionData, new_data := GetAuctionData(auth.AccessToken, last_request_time)
+	return auctionData, new_data
 }
 
 func loadEnvironment() {
@@ -31,6 +32,16 @@ func retrieveEnvironmentValue(key string) string {
 	return value
 }
 
+func loadData(db *gorm.DB, last_request_time time.Time) {
+	auctionData, new_data := getAuctionStuff(last_request_time)
+	if !new_data {
+		fmt.Println("No new data", time.Now())
+		return
+	}
+	fmt.Println("Data Gathered", time.Now())
+	InsertAuctionData(db, auctionData)
+}
+
 func main() {
 	loadEnvironment()
 	db := ConnectToDb()
@@ -38,22 +49,7 @@ func main() {
 	if db == nil {
 		return
 	}
-	// MigrateTables(db)
 
-	auctionData := getAuctionStuff()
-	fmt.Println("Data Gathered", time.Now())
-	run := Run{}
-	runRes := db.Create(&run)
-	fmt.Println("run created", runRes.RowsAffected, runRes.Error)
-
-	auctions := []Auction{}
-	for _, data := range auctionData.Auctions {
-		auction := Auction{Quantity: uint(data.Quantity), InitialItemId: uint(data.Item.ID), RunID: run.ID, UnitPrice: uint(data.UnitPrice), TimeLeft: data.TimeLeft}
-		auctions = append(auctions, auction)
-	}
-	fmt.Println("Start creation", time.Now())
-
-	res := db.CreateInBatches(auctions, 100)
-	fmt.Println("Committed", res.RowsAffected, res.Error, time.Now())
-
+	last_request_time := retrieveLastSliceTime(db)
+	loadData(db, last_request_time)
 }

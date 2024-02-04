@@ -9,15 +9,15 @@ import (
 )
 
 type Auction struct {
-	ID            uint
-	Quantity      uint
-	InitialItemId uint
-	UnitPrice     uint
-	TimeLeft      string
-	RunID         uint
+	ID             uint
+	Quantity       uint
+	InitialItemId  uint
+	UnitPrice      uint
+	TimeLeft       string
+	AuctionSliceID uint
 }
 
-type Run struct {
+type AuctionSlice struct {
 	ID        uint
 	CreatedAt time.Time
 }
@@ -33,9 +33,29 @@ func ConnectToDb() *gorm.DB {
 }
 
 func MigrateTables(db *gorm.DB) {
-	err := db.AutoMigrate(&Run{}, &Auction{})
+	err := db.AutoMigrate(&AuctionSlice{}, &Auction{})
 	if err != nil {
 		fmt.Println("Error with migration", err)
 	}
-	db.Commit()
+}
+
+func InsertAuctionData(db *gorm.DB, auctionData *AuctionDataResponse) {
+	auction_slice := AuctionSlice{}
+	db.Create(&auction_slice)
+
+	auctions := []Auction{}
+	for _, data := range auctionData.Auctions {
+		auction := Auction{Quantity: uint(data.Quantity), InitialItemId: uint(data.Item.ID), AuctionSliceID: auction_slice.ID, UnitPrice: uint(data.UnitPrice), TimeLeft: data.TimeLeft}
+		auctions = append(auctions, auction)
+	}
+	fmt.Println("Start creation", time.Now())
+
+	res := db.CreateInBatches(auctions, 100)
+	fmt.Println("Committed", res.RowsAffected, res.Error, time.Now())
+}
+
+func retrieveLastSliceTime(db *gorm.DB) time.Time {
+	var auction_slice AuctionSlice
+	db.Order("created_at desc").Find(&auction_slice)
+	return auction_slice.CreatedAt
 }

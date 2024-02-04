@@ -34,20 +34,25 @@ type AuctionDataResponse struct {
 	} `json:"auctions"`
 }
 
-func GetAuctionData(token string) *AuctionDataResponse {
+func GetAuctionData(token string, last_request_time time.Time) (auction_data *AuctionDataResponse, new_data bool) {
 	c := http.Client{Timeout: time.Duration(20) * time.Second}
 	req, _ := http.NewRequest("GET", "https://us.api.blizzard.com/data/wow/auctions/commodities?namespace=dynamic-us&locale=en_US", nil)
 
 	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("If-Modified-Since", last_request_time.Format(time.RFC1123))
 
 	resp, err := c.Do(req)
 	if err != nil {
 		fmt.Printf("Error occurred %s", err)
-		return nil
+		return nil, true
 	}
+	if resp.StatusCode == 304 {
+		return nil, false
+	}
+
 	if resp.StatusCode != 200 {
 		fmt.Printf("Recieved bad status code: %d", resp.StatusCode)
-		return nil
+		return nil, true
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -56,11 +61,11 @@ func GetAuctionData(token string) *AuctionDataResponse {
 		err := json.Unmarshal(body, &responseData)
 		if err != nil {
 			fmt.Printf("Unmarshal error %s", err)
-			return nil
+			return nil, true
 		}
-		return &responseData
+		return &responseData, true
 	}
-	return nil
+	return nil, true
 }
 
 func GetToken(client_id string, client_secret string) *AuthResponse {
