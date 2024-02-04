@@ -2,16 +2,37 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 func getAuctionStuff() *AuctionDataResponse {
-	auth := GetToken("38b0218c1fb24e4599b60c358b01964d", "tMzdyGzfOE01bCzc6yccCd186MK26TWG")
+	auth := GetToken(retrieveEnvironmentValue("API_CLIENT_ID"), retrieveEnvironmentValue("API_CLIENT_SECRET"))
 	auctionData := GetAuctionData(auth.AccessToken)
 	return auctionData
 }
 
+func loadEnvironment() {
+	viper.SetConfigFile(".env")
+	err := viper.ReadInConfig()
+
+	if err != nil {
+		log.Fatalf("Error while reading config file %s", err)
+	}
+}
+
+func retrieveEnvironmentValue(key string) string {
+	value, ok := viper.Get(key).(string)
+	if !ok {
+		log.Fatalf("Invalid type assertion")
+	}
+	return value
+}
+
 func main() {
+	loadEnvironment()
 	db := ConnectToDb()
 
 	if db == nil {
